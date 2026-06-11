@@ -9,7 +9,7 @@ qu'une fonctionnalité parmi d'autres, et la base est pensée pour en accueillir
 
 | Côté Scorekeepr | Côté MPP |
 |---|---|
-| ![Vue Scorekeepr](images/vue_sk.png) | ![Vue MPP](images/vue_mpp.png) |
+| ![Vue Scorekeepr](images/vue_sk.png) | ![Vue MPP](images/vue_mpp_new.png) |
 
 ## Fonctionnalités
 
