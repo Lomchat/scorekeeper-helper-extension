@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Score Sync — MPP ↔ Scorekeepr",
   "version": "1.0.0",
-  "description": "Extraire et remplir les scores de pronostics entre mpp.football et scorekeepers.uk.",
+  "description": "Assistant pour scorekeepers.uk : suivi des journées à remplir, compatibilité MPP (extraction/remplissage des scores), et plus.",
   "content_scripts": [
     {
       "matches": [
