@@ -1,0 +1,18 @@
+{
+  "manifest_version": 3,
+  "name": "Score Sync — MPP ↔ Scorekeepr",
+  "version": "1.0.0",
+  "description": "Extraire et remplir les scores de pronostics entre mpp.football et scorekeepers.uk.",
+  "content_scripts": [
+    {
+      "matches": [
+        "https://mpp.football/*",
+        "https://*.mpp.football/*",
+        "https://scorekeepers.uk/*",
+        "https://*.scorekeepers.uk/*"
+      ],
+      "js": ["teams.js", "content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}
