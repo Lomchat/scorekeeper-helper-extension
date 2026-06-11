@@ -4,9 +4,6 @@ Assistant Chrome pour **[scorekeepers.uk](https://scorekeepers.uk/)** : une card
 à droite qui regroupe des outils pratiques pour gérer ses pronostics, avec en plus une
 passerelle vers [mpp.football](https://mpp.football/).
 
-L'objectif est d'être un **helper général de ScoreKeeper** — la compatibilité MPP n'est
-qu'une fonctionnalité parmi d'autres, et la base est pensée pour en accueillir de nouvelles.
-
 | Côté Scorekeepr | Côté MPP |
 |---|---|
 | ![Vue Scorekeepr](images/vue_sk.png) | ![Vue MPP](images/vue_mpp_new.png) |
