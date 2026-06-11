@@ -12,6 +12,9 @@ passerelle vers [mpp.football](https://mpp.football/).
 
 **Sur scorekeepers.uk :**
 
+- **Paris en attente de validation** — détecte les scores saisis mais pas encore validés
+  et affiche une bannière **« X paris en attente de validation »** avec un bouton
+  **Tout valider** qui les valide tous d'un coup.
 - **Suivi « À remplir »** — les matchs sont regroupés par journée (countdown identique) ;
   pour chacune, le nombre de paris remplis / restants, et un bouton ↧ qui défile jusqu'au
   premier match à remplir (avant l'échéance).
@@ -19,6 +22,8 @@ passerelle vers [mpp.football](https://mpp.football/).
   *Remplir scores depuis MPP* (colle un JSON, remplit **et valide** chaque pari).
 - Si l'on n'est pas sur la page des pronos, un bouton **« Aller sur la page des pronos »**
   y mène directement.
+
+![Paris en attente de validation](images/sk_paris_non_valides.png)
 
 **Sur mpp.football :**
 
