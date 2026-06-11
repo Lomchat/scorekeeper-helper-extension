@@ -319,6 +319,18 @@
   .btn-goto-page { width:100%; background: linear-gradient(135deg,#b8941e,#d4af37); color:#1a1a1a; }
   .empty { font-size: 12.5px; color: #9a9aab; line-height: 1.5; }
 
+  .pending-banner {
+    display: flex; align-items: center; gap: 10px; padding: 10px 12px;
+    background: rgba(255,160,50,.12); border: 1px solid rgba(255,160,50,.45);
+    border-radius: 11px;
+  }
+  .pending-banner .pb-text { flex: 1; font-size: 12.5px; font-weight: 700; color: #ffce8a; line-height: 1.35; }
+  .pending-banner .pb-btn {
+    flex: 0 0 auto; background: linear-gradient(135deg,#f59e0b,#fbbf24); color: #1a1a1a;
+    padding: 8px 12px; font-size: 12.5px;
+  }
+  .pending-banner .pb-btn:disabled { opacity: .7; cursor: default; }
+
   .journee {
     display: flex; align-items: center; gap: 10px;
     padding: 9px 10px; background:#0d0d12; border-radius: 10px; margin-bottom: 7px;
@@ -483,6 +495,37 @@
     return Array.from(map.values()).sort((a, b) => cdMinutes(a.cd) - cdMinutes(b.cd));
   }
 
+  // Matchs avec un score saisi mais pas encore validé (input ≠ pari placé).
+  function getPending() {
+    const out = [];
+    for (const card of document.querySelectorAll(".match-card")) {
+      const ins = card.querySelectorAll(".score-input");
+      if (ins.length < 2 || !isVisible(ins[0])) continue;
+      const curH = toInt(ins[0].value), curA = toInt(ins[1].value);
+      if (curH == null || curA == null) continue;          // pas (entièrement) saisi
+      const placed = parsePariExistant(card);
+      if (placed && placed.h === curH && placed.a === curA) continue; // déjà validé tel quel
+      const btn = card.querySelector(".btn-pari");
+      if (btn) out.push({ card, btn });
+    }
+    return out;
+  }
+
+  // Valide toutes les saisies en attente (clic + attente du re-render à chaque fois).
+  async function validateAllPending(onStep) {
+    let count = 0, guard = 0;
+    while (guard++ < 300) {
+      const pend = getPending();
+      if (!pend.length) break;
+      if (onStep) onStep(count + 1, count + pend.length);
+      const p = pend[0];
+      p.btn.click();
+      await waitForRerender(p.card);
+      count++;
+    }
+    return count;
+  }
+
   // Défile jusqu'à un match et le met brièvement en évidence.
   function flashCard(card) {
     if (!card) return;
@@ -513,6 +556,15 @@
         `<div class="empty">Va sur la page des pronos pour extraire ou remplir les scores.</div>` +
         `<button class="btn-goto-page" data-action="goto-page">📅 Aller sur la page des pronos</button>`;
     } else {
+      const pending = getPending();
+      if (pending.length) {
+        body +=
+          `<div class="pending-banner">` +
+          `<span class="pb-text">⏳ ${pending.length} pari(s) en attente de validation</span>` +
+          `<button class="pb-btn" data-action="validate-all">Tout valider</button>` +
+          `</div>`;
+      }
+
       body +=
         `<div class="section">` +
         `<div class="section-title">Compatibilité MPP</div>` +
@@ -558,30 +610,58 @@
     else if (a === "goto-journee") {
       const g = getJournees().find((x) => x.cd === btn.getAttribute("data-cd"));
       flashCard(g && g.firstTodo);
+    } else if (a === "validate-all") {
+      validateAll(btn);
     }
   });
+
+  async function validateAll(btn) {
+    busy = true;                       // gèle le re-render du panneau pendant l'opération
+    btn.disabled = true;
+    try {
+      const n = await validateAllPending((done, total) => {
+        btn.textContent = `⏳ ${done}/${total}...`;
+      });
+      toast(`${n} pari(s) validé(s) ✔`);
+    } catch (e) {
+      toast("Erreur lors de la validation");
+    } finally {
+      busy = false;
+      lastSig = panelSignature();
+      renderPanel();
+    }
+  }
 
   // Signature de l'état affiché : évite de re-render à chaque tic du DOM.
   function panelSignature() {
     if (SITE !== "scorekeepr") return "mpp";
     if (!onScoresPage()) return "no-page";
-    return getJournees().map((g) => `${g.cd}|${g.filled}|${g.todo}`).join("~");
+    const j = getJournees().map((g) => `${g.cd}|${g.filled}|${g.todo}`).join("~");
+    return `p${getPending().length}~${j}`;
   }
   let lastSig = panelSignature();
   renderPanel();
 
-  // Scorekeepr : re-render quand l'état pertinent change (onglets, paris validés…).
-  if (SITE === "scorekeepr") {
-    let timer = null;
-    new MutationObserver(() => {
+  // Re-render seulement si l'état pertinent a changé (débouncé).
+  let renderTimer = null;
+  function scheduleRender() {
+    if (busy) return;
+    clearTimeout(renderTimer);
+    renderTimer = setTimeout(() => {
       if (busy) return;
-      clearTimeout(timer);
-      timer = setTimeout(() => {
-        if (busy) return;
-        const sig = panelSignature();
-        if (sig !== lastSig) { lastSig = sig; renderPanel(); }
-      }, 400);
-    }).observe(document.body, { childList: true, subtree: true });
+      const sig = panelSignature();
+      if (sig !== lastSig) { lastSig = sig; renderPanel(); }
+    }, 300);
+  }
+
+  // Scorekeepr : re-render quand l'état pertinent change (onglets, paris validés…),
+  // et quand l'utilisateur saisit un score (détection des paris en attente).
+  if (SITE === "scorekeepr") {
+    new MutationObserver(scheduleRender).observe(document.body, { childList: true, subtree: true });
+    document.addEventListener("input", (e) => {
+      const t = e.target;
+      if (t && t.classList && t.classList.contains("score-input")) scheduleRender();
+    }, true);
 
     // Reprise après une navigation déclenchée par "Aller aux pronos".
     if (sessionStorage.getItem("ssh_goto_paris")) {
