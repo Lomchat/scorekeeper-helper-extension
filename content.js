@@ -95,6 +95,7 @@
       if (names.length < 2 || ins.length < 2) continue;
       const existing = parsePariExistant(card);
       const cd = card.querySelector(".countdown");
+      const dateEl = card.querySelector(".match-date");
       matches.push({
         home: names[0].textContent.trim(),
         away: names[1].textContent.trim(),
@@ -103,7 +104,8 @@
         validateBtn: card.querySelector(".btn-pari"),
         card: card,
         filled: existing != null,                 // un pari a déjà été placé
-        countdown: cd ? cd.textContent.replace(/\s+/g, " ").trim() : ""
+        countdown: cd ? cd.textContent.replace(/\s+/g, " ").trim() : "",
+        date: dateEl ? dateEl.textContent.replace(/\s+/g, " ").trim() : ""
       });
     }
     return matches;
@@ -127,7 +129,8 @@
         home: m.home,
         away: m.away,
         homeScore: toInt(m.homeInput.value),
-        awayScore: toInt(m.awayInput.value)
+        awayScore: toInt(m.awayInput.value),
+        ...(m.date ? { date: m.date } : {})        // date du match si dispo
       }))
       // On exclut les paris non saisis (scores nuls/vides).
       .filter((m) => m.homeScore != null && m.awayScore != null);
@@ -152,11 +155,13 @@
         const mm = it.score.match(/(\d+)\s*[-:–]\s*(\d+)/);
         if (mm) { hs = +mm[1]; as = +mm[2]; }
       }
+      const date = it.date ?? it.matchDate ?? it.when ?? "";
       return {
         home: String(home).trim(),
         away: String(away).trim(),
         homeScore: toInt(hs),
-        awayScore: toInt(as)
+        awayScore: toInt(as),
+        date: String(date || "").trim()
       };
     }).filter((m) => m.home && m.away);
   }
@@ -237,7 +242,10 @@
       const aScore = target.swapped ? w.homeScore : w.awayScore;
       const label = `${p.home} vs ${p.away}`;
       const scoreStr = `${hScore} – ${aScore}`;
-      const rec = { home: p.home, away: p.away, homeScore: hScore, awayScore: aScore };
+      const rec = {
+        home: p.home, away: p.away, homeScore: hScore, awayScore: aScore,
+        date: p.date || w.date || ""        // date de la page sinon celle du JSON
+      };
 
       // Déjà au bon score -> on ne touche à rien.
       const curH = toInt(p.homeInput.value);
@@ -398,8 +406,11 @@
   .list { margin: 0; padding: 0; list-style: none; }
   .list li {
     padding: 8px 10px; border-radius: 8px; background:#0d0d12; margin-bottom: 6px; font-size: 13px;
-    display:flex; justify-content:space-between; gap:10px;
+    display:flex; justify-content:space-between; align-items:center; gap:10px;
   }
+  .list li .m-main { display:flex; flex-direction:column; gap:2px; min-width:0; }
+  .list li .m-teams { overflow:hidden; text-overflow:ellipsis; }
+  .list li .m-date { font-size:11px; color:#9a9aab; }
   .list li .score { color:#b8941e; font-weight:700; white-space:nowrap; }
   .list li.miss { border-left: 3px solid #ffa032; }
   .list li.mod  { border-left: 3px solid #60a5fa; }
@@ -788,13 +799,20 @@
 
   function renderReport(container, res) {
     const validSuffix = res.site === "scorekeepr" ? " ✓" : "";
-    const section = (title, arr, cls) => {
+    // Une ligne de match : équipes + date (si dispo) à gauche, score à droite.
+    const row = (m, cls, withScore) => {
+      const date = m.date ? `<span class="m-date">📅 ${esc(m.date)}</span>` : "";
+      const score = withScore
+        ? `<span class="score">${m.homeScore} – ${m.awayScore}${m.validated ? validSuffix : ""}</span>`
+        : "";
+      return `<li class="${cls || ""}">` +
+        `<span class="m-main"><span class="m-teams">${esc(m.home)} <b>vs</b> ${esc(m.away)}</span>${date}</span>` +
+        score + `</li>`;
+    };
+    const section = (title, arr, cls, withScore = true) => {
       if (!arr.length) return "";
       let h = `<div class="secT">${title}</div><ul class="list">`;
-      for (const m of arr) {
-        h += `<li class="${cls || ""}"><span>${esc(m.home)} <b>vs</b> ${esc(m.away)}</span>
-          <span class="score">${m.homeScore} – ${m.awayScore}${m.validated ? validSuffix : ""}</span></li>`;
-      }
+      for (const m of arr) h += row(m, cls, withScore);
       return h + `</ul>`;
     };
 
@@ -809,22 +827,9 @@
     html += section("Remplis", res.filled);
     html += section("Modifiés", res.modified, "mod");
     html += section("Déjà au bon score (non touchés)", res.already, "same");
+    html += section("Non trouvés sur cette page", res.notFound, "miss");
+    html += section("Ignorés (score manquant dans le JSON)", res.skipped, "", false);
 
-    if (res.notFound.length) {
-      html += `<div class="secT">Non trouvés sur cette page</div><ul class="list">`;
-      for (const m of res.notFound) {
-        html += `<li class="miss"><span>${esc(m.home)} <b>vs</b> ${esc(m.away)}</span>
-          <span class="score">${m.homeScore} – ${m.awayScore}</span></li>`;
-      }
-      html += `</ul>`;
-    }
-    if (res.skipped.length) {
-      html += `<div class="secT">Ignorés (score manquant dans le JSON)</div><ul class="list">`;
-      for (const m of res.skipped) {
-        html += `<li><span>${esc(m.home)} <b>vs</b> ${esc(m.away)}</span></li>`;
-      }
-      html += `</ul>`;
-    }
     container.innerHTML = html;
   }
 })();
