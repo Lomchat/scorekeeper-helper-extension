@@ -10,8 +10,11 @@
   const HOST = location.hostname;
   const SITE = /scorekeepers\.uk$/.test(HOST) ? "scorekeepr"
              : /mpp\.football$/.test(HOST) ? "mpp"
+             : /sauron\.chalco\.website$/.test(HOST) ? "sauron"
              : null;
   if (!SITE) return;
+
+  const SITE_LABEL = { mpp: "MPP", scorekeepr: "Scorekeepr", sauron: "Sauron" };
 
   /* ------------------------------------------------------------------ */
   /* Utilitaires                                                         */
@@ -42,9 +45,33 @@
   /* Lecture des matchs présents sur la page                             */
   /* ------------------------------------------------------------------ */
 
-  // -> [{ home, away, homeInput, awayInput, validateBtn? }]
+  // -> [{ home, away, (homeInput, awayInput) | (homeScore, awayScore), validateBtn?, date? }]
   function readMatches() {
-    return SITE === "mpp" ? readMpp() : readScorekeepr();
+    if (SITE === "mpp") return readMpp();
+    if (SITE === "sauron") return readSauron();
+    return readScorekeepr();
+  }
+
+  // sauron.chalco.website : site de prédiction, scores déjà affichés en texte.
+  function readSauron() {
+    const matches = [];
+    for (const card of document.querySelectorAll("article.card, .card")) {
+      const h = card.querySelector(".team.h");
+      const a = card.querySelector(".team.a");
+      const sc = card.querySelector(".score");
+      if (!h || !a || !sc) continue;
+      const mm = sc.textContent.match(/(\d+)\s*[-:–]\s*(\d+)/);
+      if (!mm) continue;
+      const top = card.querySelector(".top span");
+      matches.push({
+        home: h.textContent.trim(),
+        away: a.textContent.trim(),
+        homeScore: +mm[1],
+        awayScore: +mm[2],
+        date: top ? top.textContent.replace(/\s+/g, " ").trim() : ""
+      });
+    }
+    return matches;
   }
 
   function readMpp() {
@@ -128,8 +155,9 @@
       .map((m) => ({
         home: m.home,
         away: m.away,
-        homeScore: toInt(m.homeInput.value),
-        awayScore: toInt(m.awayInput.value),
+        // Scores via inputs (mpp/scorekeepr) ou déjà en texte (sauron).
+        homeScore: m.homeInput ? toInt(m.homeInput.value) : (m.homeScore ?? null),
+        awayScore: m.awayInput ? toInt(m.awayInput.value) : (m.awayScore ?? null),
         ...(m.date ? { date: m.date } : {})        // date du match si dispo
       }))
       // On exclut les paris non saisis (scores nuls/vides).
@@ -550,13 +578,20 @@
   }
 
   function renderPanel() {
+    const tag = SITE === "mpp" ? "MPP" : SITE === "sauron" ? "Sauron" : "SK";
     const head =
       `<div class="ssh-head">` +
       `<span class="logo">⚽</span><span class="title">ScoreKeeper Helper</span>` +
-      `<span class="tag">${SITE === "mpp" ? "MPP" : "SK"}</span></div>`;
+      `<span class="tag">${tag}</span></div>`;
 
     let body = "";
-    if (SITE === "mpp") {
+    if (SITE === "sauron") {
+      body =
+        `<div class="empty">Site de prédiction — extraction des résultats uniquement.</div>` +
+        `<div class="actions">` +
+        `<button class="act btn-extract" data-action="extract">⬇️ Extraire scores</button>` +
+        `</div>`;
+    } else if (SITE === "mpp") {
       body =
         `<div class="actions">` +
         `<button class="act btn-extract" data-action="extract">⬇️ Extraire scores</button>` +
@@ -716,7 +751,7 @@
     const json = JSON.stringify(data, null, 2);
     openModal((modal, close) => {
       modal.innerHTML = `
-        <h2>Scores extraits — ${SITE === "mpp" ? "MPP" : "Scorekeepr"}</h2>
+        <h2>Scores extraits — ${SITE_LABEL[SITE]}</h2>
         <p class="sub">${data.matches.length} match(s) détecté(s). Copie ce JSON puis colle-le sur l'autre site.</p>
         <textarea readonly></textarea>
         <div class="row end">
@@ -740,7 +775,7 @@
   function openFill() {
     openModal((modal, close) => {
       modal.innerHTML = `
-        <h2>Remplir les scores — ${SITE === "mpp" ? "MPP" : "Scorekeepr"}</h2>
+        <h2>Remplir les scores — ${SITE_LABEL[SITE]}</h2>
         <p class="sub">Colle le JSON extrait depuis l'autre site${
           SITE === "scorekeepr" ? ", chaque pari sera validé automatiquement." : "."
         }</p>
