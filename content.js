@@ -62,13 +62,11 @@
       if (!h || !a || !sc) continue;
       const mm = sc.textContent.match(/(\d+)\s*[-:–]\s*(\d+)/);
       if (!mm) continue;
-      const top = card.querySelector(".top span");
       matches.push({
         home: h.textContent.trim(),
         away: a.textContent.trim(),
         homeScore: +mm[1],
-        awayScore: +mm[2],
-        date: top ? top.textContent.replace(/\s+/g, " ").trim() : ""
+        awayScore: +mm[2]
       });
     }
     return matches;
@@ -122,7 +120,6 @@
       if (names.length < 2 || ins.length < 2) continue;
       const existing = parsePariExistant(card);
       const cd = card.querySelector(".countdown");
-      const dateEl = card.querySelector(".match-date");
       matches.push({
         home: names[0].textContent.trim(),
         away: names[1].textContent.trim(),
@@ -131,8 +128,7 @@
         validateBtn: card.querySelector(".btn-pari"),
         card: card,
         filled: existing != null,                 // un pari a déjà été placé
-        countdown: cd ? cd.textContent.replace(/\s+/g, " ").trim() : "",
-        date: dateEl ? dateEl.textContent.replace(/\s+/g, " ").trim() : ""
+        countdown: cd ? cd.textContent.replace(/\s+/g, " ").trim() : ""
       });
     }
     return matches;
@@ -157,8 +153,7 @@
         away: m.away,
         // Scores via inputs (mpp/scorekeepr) ou déjà en texte (sauron).
         homeScore: m.homeInput ? toInt(m.homeInput.value) : (m.homeScore ?? null),
-        awayScore: m.awayInput ? toInt(m.awayInput.value) : (m.awayScore ?? null),
-        ...(m.date ? { date: m.date } : {})        // date du match si dispo
+        awayScore: m.awayInput ? toInt(m.awayInput.value) : (m.awayScore ?? null)
       }))
       // On exclut les paris non saisis (scores nuls/vides).
       .filter((m) => m.homeScore != null && m.awayScore != null);
@@ -183,13 +178,11 @@
         const mm = it.score.match(/(\d+)\s*[-:–]\s*(\d+)/);
         if (mm) { hs = +mm[1]; as = +mm[2]; }
       }
-      const date = it.date ?? it.matchDate ?? it.when ?? "";
       return {
         home: String(home).trim(),
         away: String(away).trim(),
         homeScore: toInt(hs),
-        awayScore: toInt(as),
-        date: String(date || "").trim()
+        awayScore: toInt(as)
       };
     }).filter((m) => m.home && m.away);
   }
@@ -270,10 +263,7 @@
       const aScore = target.swapped ? w.homeScore : w.awayScore;
       const label = `${p.home} vs ${p.away}`;
       const scoreStr = `${hScore} – ${aScore}`;
-      const rec = {
-        home: p.home, away: p.away, homeScore: hScore, awayScore: aScore,
-        date: p.date || w.date || ""        // date de la page sinon celle du JSON
-      };
+      const rec = { home: p.home, away: p.away, homeScore: hScore, awayScore: aScore };
 
       // Déjà au bon score -> on ne touche à rien.
       const curH = toInt(p.homeInput.value);
@@ -436,9 +426,6 @@
     padding: 8px 10px; border-radius: 8px; background:#0d0d12; margin-bottom: 6px; font-size: 13px;
     display:flex; justify-content:space-between; align-items:center; gap:10px;
   }
-  .list li .m-main { display:flex; flex-direction:column; gap:2px; min-width:0; }
-  .list li .m-teams { overflow:hidden; text-overflow:ellipsis; }
-  .list li .m-date { font-size:11px; color:#9a9aab; }
   .list li .score { color:#b8941e; font-weight:700; white-space:nowrap; }
   .list li.miss { border-left: 3px solid #ffa032; }
   .list li.mod  { border-left: 3px solid #60a5fa; }
@@ -834,15 +821,11 @@
 
   function renderReport(container, res) {
     const validSuffix = res.site === "scorekeepr" ? " ✓" : "";
-    // Une ligne de match : équipes + date (si dispo) à gauche, score à droite.
     const row = (m, cls, withScore) => {
-      const date = m.date ? `<span class="m-date">📅 ${esc(m.date)}</span>` : "";
       const score = withScore
         ? `<span class="score">${m.homeScore} – ${m.awayScore}${m.validated ? validSuffix : ""}</span>`
         : "";
-      return `<li class="${cls || ""}">` +
-        `<span class="m-main"><span class="m-teams">${esc(m.home)} <b>vs</b> ${esc(m.away)}</span>${date}</span>` +
-        score + `</li>`;
+      return `<li class="${cls || ""}"><span>${esc(m.home)} <b>vs</b> ${esc(m.away)}</span>${score}</li>`;
     };
     const section = (title, arr, cls, withScore = true) => {
       if (!arr.length) return "";
