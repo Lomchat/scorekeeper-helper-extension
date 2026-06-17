@@ -582,7 +582,6 @@
     let body = "";
     if (SITE === "sauron") {
       body =
-        `<div class="empty">Site de prédiction — extraction des résultats uniquement.</div>` +
         `<div class="actions">` +
         `<button class="act btn-extract" data-action="extract">⬇️ Extraire scores</button>` +
         `</div>`;
