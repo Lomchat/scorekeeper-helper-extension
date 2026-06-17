@@ -384,8 +384,16 @@
     background: #14141a; color: #eaeaf0; border: 1px solid rgba(184,148,30,.4);
     border-radius: 16px; padding: 20px; box-shadow: 0 20px 60px rgba(0,0,0,.6);
   }
+  .modal.big { width: min(960px, 95vw); max-height: 92vh; }
+  .modal.big textarea { min-height: 460px; max-height: 64vh; }
   .modal h2 { margin: 0 0 4px; font-size: 18px; }
   .modal .sub { margin: 0 0 14px; font-size: 13px; color: #9a9aab; }
+  .search {
+    width: 100%; padding: 10px 12px; border-radius: 10px; margin-bottom: 8px;
+    background: #0d0d12; color: #eaeaf0; border: 1px solid #2a2a36; font-size: 13px;
+  }
+  .search:focus { outline: none; border-color: rgba(184,148,30,.7); }
+  .count { font-size: 12px; color: #9a9aab; margin-bottom: 8px; }
   textarea {
     width: 100%; min-height: 200px; resize: vertical; border-radius: 10px;
     background: #0d0d12; color: #d7f7e3; border: 1px solid #2a2a36; padding: 12px;
@@ -733,28 +741,53 @@
   }
 
   /* ----- Extraire ----- */
+  // Normalisation pour la recherche : minuscules, sans accents (garde chiffres/espaces).
+  function searchNorm(s) {
+    return String(s).normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+  }
+
   function openExtract() {
-    const data = extract();
-    const json = JSON.stringify(data, null, 2);
+    const all = extract().matches;                 // tableau de matchs (ordre conservé)
+    const fullJson = JSON.stringify(all, null, 2);
     openModal((modal, close) => {
+      modal.classList.add("big");
       modal.innerHTML = `
         <h2>Scores extraits — ${SITE_LABEL[SITE]}</h2>
-        <p class="sub">${data.matches.length} match(s) détecté(s). Copie ce JSON puis colle-le sur l'autre site.</p>
+        <p class="sub">${all.length} match(s) détecté(s). Copie ce JSON puis colle-le sur l'autre site.</p>
+        <input class="search" type="text" placeholder="🔍 Rechercher (équipe, score…)">
+        <div class="count"></div>
         <textarea readonly></textarea>
         <div class="row end">
           <button class="ghost close">Fermer</button>
           <button class="btn-extract copy">📋 Copier le JSON</button>
         </div>`;
       const ta = modal.querySelector("textarea");
-      ta.value = json;
+      const search = modal.querySelector(".search");
+      const count = modal.querySelector(".count");
+
+      const render = (q) => {
+        const term = searchNorm(q).trim();
+        const list = term
+          ? all.filter((m) =>
+              searchNorm(`${m.home} ${m.away} ${m.homeScore}-${m.awayScore}`).includes(term))
+          : all;
+        ta.value = JSON.stringify(list, null, 2);
+        count.textContent = term
+          ? `${list.length} / ${all.length} match(s) — copie le résultat filtré`
+          : `${all.length} match(s)`;
+      };
+      render("");
+
+      search.addEventListener("input", () => render(search.value));
       ta.addEventListener("focus", () => ta.select());
       modal.querySelector(".close").addEventListener("click", close);
       modal.querySelector(".copy").addEventListener("click", async () => {
-        try { await navigator.clipboard.writeText(json); toast("JSON copié ✔"); }
+        const txt = ta.value;                        // copie ce qui est affiché (filtré ou non)
+        try { await navigator.clipboard.writeText(txt); toast("JSON copié ✔"); }
         catch { ta.select(); document.execCommand("copy"); toast("JSON copié ✔"); }
       });
-      // Copie automatique pour confort.
-      navigator.clipboard && navigator.clipboard.writeText(json).catch(() => {});
+      // Copie automatique de tout, pour le cas courant.
+      navigator.clipboard && navigator.clipboard.writeText(fullJson).catch(() => {});
     });
   }
 
@@ -766,7 +799,7 @@
         <p class="sub">Colle le JSON extrait depuis l'autre site${
           SITE === "scorekeepr" ? ", chaque pari sera validé automatiquement." : "."
         }</p>
-        <textarea placeholder='{ "matches": [ { "home": "...", "away": "...", "homeScore": 2, "awayScore": 0 } ] }'></textarea>
+        <textarea placeholder='[ { "home": "...", "away": "...", "homeScore": 2, "awayScore": 0 } ]'></textarea>
         <div class="row end">
           <button class="ghost close">Annuler</button>
           <button class="btn-fill go">▶️ Remplir</button>
