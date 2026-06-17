@@ -9,7 +9,8 @@
         "https://mpp.football/*",
         "https://*.mpp.football/*",
         "https://scorekeepers.uk/*",
-        "https://*.scorekeepers.uk/*"
+        "https://*.scorekeepers.uk/*",
+        "https://sauron.chalco.website/*"
       ],
       "js": ["teams.js", "content.js"],
       "run_at": "document_idle"
